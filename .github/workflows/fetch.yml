@@ -39,7 +39,7 @@ jobs:
       - if: steps.done.outputs.skip != 'true'
         run: npm ci
       - if: steps.done.outputs.skip != 'true'
-        run: npx playwright install --with-deps chromium
+        run: ./node_modules/.bin/playwright install --with-deps chromium
       - name: Fetch, strip, write
         if: steps.done.outputs.skip != 'true'
         working-directory: .
@@ -49,11 +49,14 @@ jobs:
       - name: Commit
         if: steps.done.outputs.skip != 'true'
         working-directory: .
+        env:
+          TITLE: ${{ github.event.issue.title }}
+          NUMBER: ${{ github.event.issue.number }}
         run: |
           git add sources
           git diff --cached --quiet && exit 0
           git config user.name "scythe[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "source: ${{ github.event.issue.title }} (#${{ github.event.issue.number }})"
+          git commit -m "source: ${TITLE} (#${NUMBER})"
           for attempt in 1 2 3 4 5; do git pull --rebase --quiet && git push --quiet && exit 0; sleep $((attempt * 3)); done
           exit 1
