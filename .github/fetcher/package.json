@@ -1,0 +1,10 @@
+{
+  "name": "scythe-fetcher",
+  "private": true,
+  "type": "module",
+  "description": "GitHub Action: read an article in headless Chromium, strip it to clean HTML and text with Readability, commit sources/<n>.md",
+  "dependencies": {
+    "@mozilla/readability": "0.5.0",
+    "playwright": "1.49.1"
+  }
+}

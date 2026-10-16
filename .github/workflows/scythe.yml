@@ -1,0 +1,45 @@
+# spaCy worker. Cards and sources are files in git (every save is a commit). On each push that
+# touches them, mirror the changed files to their GitHub issues: rendered card, labels, spaCy token
+# offsets and entities, sub-issue under the source. The worker never commits.
+name: Scythe
+
+on:
+  push:
+    branches: [main]
+    paths: ["cards/**", "sources/**"]
+  workflow_dispatch:  # resync every card and source
+
+permissions:
+  contents: read
+  issues: write
+
+# No concurrency group: GitHub keeps only one pending run per group and cancels the rest, which
+# would skip files changed by the cancelled pushes. Instead every push syncs its own changed files,
+# reading them from the latest main, so overlapping runs just repeat the same up-to-date write.
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: .github/scythe-requirements.txt
+      - run: pip install -r .github/scythe-requirements.txt
+      - name: Mirror changed files to issues
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PYTHONPATH: backend
+          BEFORE: ${{ github.event.before }}
+        run: |
+          git fetch --quiet origin main && git checkout --quiet origin/main -- cards sources 2>/dev/null || true
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            python -m scythe.action resync
+          else
+            changes=$(git diff --name-status --no-renames "$BEFORE" "$GITHUB_SHA" -- cards sources | awk '{print $1":"$2}')
+            [ -n "$changes" ] && python -m scythe.action sync $changes || echo "no card or source changes"
+          fi

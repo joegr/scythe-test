@@ -1,0 +1,59 @@
+# Article fetcher: a source issue labeled scythe:fetch (opened by the app with a URL) is read in
+# headless Chromium, stripped to clean HTML and text, and committed as sources/<n>.md + .html.
+name: Fetch article
+
+on:
+  issues:
+    types: [opened, labeled]
+
+permissions:
+  contents: write
+  issues: write
+
+# Opening an issue with a label fires both `opened` and `labeled`: keep one run per issue.
+concurrency:
+  group: scythe-fetch-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  fetch:
+    if: contains(github.event.issue.labels.*.name, 'scythe:fetch')
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .github/fetcher
+    steps:
+      - uses: actions/checkout@v4
+      - name: Already fetched?
+        id: done
+        working-directory: .
+        run: |
+          git pull --quiet --rebase origin main
+          if [ -f "sources/${{ github.event.issue.number }}.md" ]; then echo "skip=true" >> "$GITHUB_OUTPUT"; echo "already fetched"; fi
+      - if: steps.done.outputs.skip != 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: .github/fetcher/package-lock.json
+      - if: steps.done.outputs.skip != 'true'
+        run: npm ci
+      - if: steps.done.outputs.skip != 'true'
+        run: npx playwright install --with-deps chromium
+      - name: Fetch, strip, write
+        if: steps.done.outputs.skip != 'true'
+        working-directory: .
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node .github/fetcher/fetch.mjs
+      - name: Commit
+        if: steps.done.outputs.skip != 'true'
+        working-directory: .
+        run: |
+          git add sources
+          git diff --cached --quiet && exit 0
+          git config user.name "scythe[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "source: ${{ github.event.issue.title }} (#${{ github.event.issue.number }})"
+          for attempt in 1 2 3 4 5; do git pull --rebase --quiet && git push --quiet && exit 0; sleep $((attempt * 3)); done
+          exit 1
