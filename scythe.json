@@ -1,0 +1,31 @@
+{
+  "labels": [
+    {
+      "name": "underline",
+      "key": "sc",
+      "style": "underline",
+      "hotkey": "1"
+    },
+    {
+      "name": "highlight",
+      "key": "sc",
+      "style": "highlight",
+      "hotkey": "2"
+    },
+    {
+      "name": "emphasis",
+      "key": "sc",
+      "style": "emphasis",
+      "hotkey": "3"
+    }
+  ],
+  "topics": [
+    {
+      "slug": "custom-schools-ban-phones-pnv646-jzgd8",
+      "event": "custom",
+      "season": "",
+      "period": "",
+      "resolution": "Resolved: Schools should ban phones pnv646"
+    }
+  ]
+}
